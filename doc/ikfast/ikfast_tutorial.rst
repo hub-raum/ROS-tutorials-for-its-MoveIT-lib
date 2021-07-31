@@ -43,8 +43,9 @@ The following command will ensure that you can run docker with your user account
 You need to log off/log on in order to actually activate this permission change.
 
   Note: To run docker from `WSL2 <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_, you need to install the `Docker Desktop WSL 2 backend <https://docs.docker.com/docker-for-windows/wsl>`_.
-  
-  Note: [hubraum note] Be aware, that X11 servers do not allow 3D accelerated graphics forwarding. Thus in later part of this tutorial look for TurboVNC (or VirtualGL) installation tutorial in order to preview openrave generated model of your device. However it is only neccessary if you want to play more with GUI applications assosiated with MoveIT and IKFast environment (like RViz). For sole generation of dedicated kinematics, you might omit this part.
+
+[hubraum note]
+  Note:  Be aware, that X11 servers do not allow 3D accelerated graphics forwarding. Thus in later part of this tutorial look for TurboVNC (or VirtualGL) installation tutorial in order to preview openrave generated model of your device. However it is only neccessary if you want to play more with GUI applications assosiated with MoveIT and IKFast environment (like RViz). For sole generation of dedicated kinematics, you might omit this part.
  
 Install the MoveIt IKFast package either from Debian packages or from source.
 
@@ -68,16 +69,36 @@ To facilitate copy-and-paste, we suggest to define the robot name as an environm
   export MYROBOT_NAME="ur3e"
   export MYROBOT_CONFIG_OUTPUT_PATH="root/$MYROBOT_NAME_config/"
 
-Generate URDF model from calibrated robot. You need to have the calibration file of your robot ready. See [here](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/tree/master/ur_calibration) for instructions to get the calibration file of your robot.
-    ```shell
-    xacro --inorder ~/catkin_ws/src/fmauch_universal_robot/ur_e_description/urdf/$MYROBOT_NAME_robot.urdf.xacro kinematics_config:='$MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME_calibration.yaml' >> $MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME.urdf
-    ```
-    
-    Note: in case 'ur_e_descirption' catalog was not located in 'fmauch_universal_robot' repository, check it out from here (https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description) to '~/catkin_ws/src/fmauch_universal_robot/.' prior to step above
-    ```shell
-    cd ~/catkin_ws/src/fmauch_universal_robot/
-    git clone https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description.git
-    ```
+Getting UR calibration 
+----------------------
+
+Package for extracting the factory calibration from a UR robot and changing it to be used by ``ur_e_description`` to gain a correct URDF model.
+
+Each UR robot is calibrated inside the factory giving exact forward and inverse kinematics. To also make use of this in ROS, you first have to extract the calibration information from the robot.
+
+Though this step is not necessary, to control the robot using ``Universal_Robots_ROS_Driver`` (https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) driver, it is highly recommended to do so, as end effector positions might be off in the magnitude of centimeters. Make sure to have the driver installed before your proceed with calibration correction.
+
+** calibration_correction **
+
+This node extracts calibration information directly from a robot, calculates the URDF correction and saves it into a ``.yaml`` file.
+
+In the launch folder of the ``ur_calibration`` package is a helper script: ::
+
+   roslaunch ur_calibration calibration_correction.launch \
+   robot_ip:=<robot_ip> target_filename:="${MYROBOT_CONFIG_OUTPUT_PATH}/my_robot_calibration.yaml"
+
+
+For the parameter ``robot_ip`` insert the IP address on which the ROS pc can reach the robot. As ``target_filename`` provide an absolute path where the result will be saved to.
+
+Generate URDF model from calibrated robot. ::
+
+   xacro --inorder ~/catkin_ws/src/fmauch_universal_robot/ur_e_description/urdf/$MYROBOT_NAME_robot.urdf.xacro kinematics_config:='$MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME_calibration.yaml' >> $MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME.urdf
+
+Note: in case 'ur_e_descirption' catalog was not located in 'fmauch_universal_robot' repository, check it out from here (https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description) to '~/catkin_ws/src/fmauch_universal_robot/.' prior to step above ::
+
+   cd ~/catkin_ws/src/fmauch_universal_robot/
+   git clone https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description.git
+
     
 OpenRAVE uses Collada instead of URDF to describe the robot. In order to automatically convert your robot's URDF to Collada, you need to provide the .urdf file.
 If your .urdf file is generated from `xacro <http://wiki.ros.org/xacro/>`_ files, you can generate the URDF using the following command: ::
