@@ -300,7 +300,7 @@ After about 2 minutes (bullshit - it took me approx. an hour), you will see the 
    % ....... ikfast test failure warning at some test case No. i
    openravepy.databases.inversekinematics: testik, success rate: 0.986000, wrong solutions: 0.000000, no solutions: 0.014000, missing solution: 0.608000
 
-Yaah! you got your ikfast.h and ikfast<id>.Transform6D.<...>.cpp saved in your $home/<username>/.openrave/<id>/ folder.
+Yaah! you got your ``ikfast.h`` and ``ikfast<id>.Transform6D.<...>.cpp`` saved in your ``$home/<username>/.openrave/<id>/`` folder.
 
 [1] https://answers.ros.org/question/285611/set-free_index-for-7-dof-robots-ikfast-moveit-plugin-generation/ [2] https://answers.ros.org/question/263925/generating-an-ikfast-solution-for-4-dof-arm/ [3] https://answers.ros.org/question/196753/generating-ikfast-plugin-for-5-dof-robot/
 
