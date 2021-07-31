@@ -20,7 +20,7 @@ This tutorial will step you through setting up your robot to utilize the power o
 MoveIt IKFast is tested on ROS Melodic with a 6DOF and 7DOF robot arm manipulator.
 While it works in theory, MoveIt IKFast doesn't currently support >7 degree of freedom arms.
 
-Getting Started
+Getting Started with Docker
 -----------------
 If you haven't already done so, make sure you've completed the steps in `Getting Started <../getting_started/getting_started.html>`_.
 
@@ -47,6 +47,45 @@ You need to log off/log on in order to actually activate this permission change.
 [hubraum note]
   Note:  Be aware, that X11 servers do not allow 3D accelerated graphics forwarding. Thus in later part of this tutorial look for TurboVNC (or VirtualGL) installation tutorial in order to preview openrave generated model of your device. However it is only neccessary if you want to play more with GUI applications assosiated with MoveIT and IKFast environment (like RViz). For sole generation of dedicated kinematics, you might omit this part.
  
+Getting Started
+-----------------
+If you haven't already done so, make sure you've completed the steps in `Getting Started <../getting_started/getting_started.html>`_.
+
+You should have MoveIt configuration package for your robot that was created by using the `Setup Assistant <../setup_assistant/setup_assistant_tutorial.html>`_
+
+Installing OpenRAVE on Ubuntu 16.04 is tricky. Here are 2 blog posts that give slightly different recipes for installing OpenRAVE.
+
+ * `Stéphane Caron's Installing OpenRAVE on Ubuntu 16.04 <https://scaron.info/teaching/installing-openrave-on-ubuntu-16.04.html>`_
+ * `Francisco Suárez-Ruiz's Robotics Workstation Setup in Ubuntu 16.04 <https://fsuarez6.github.io/blog/workstation-setup-xenial>`_
+
+Make sure you have these programs installed: ::
+
+ sudo apt-get install cmake g++ git ipython minizip python-dev python-h5py python-numpy python-scipy qt4-dev-tools
+
+You may also need the following libraries: ::
+
+ sudo apt-get install libassimp-dev libavcodec-dev libavformat-dev libavformat-dev libboost-all-dev libboost-date-time-dev libbullet-dev libfaac-dev libglew-dev libgsm1-dev liblapack-dev liblog4cxx-dev libmpfr-dev libode-dev libogg-dev libpcrecpp0v5 libpcre3-dev libqhull-dev libqt4-dev libsoqt-dev-common libsoqt4-dev libswscale-dev libswscale-dev libvorbis-dev libx264-dev libxml2-dev libxvidcore-dev
+
+To enable the OpenRAVE viewer you may also need to install OpenSceneGraph-3.4 from source: ::
+
+ sudo apt-get install libcairo2-dev libjasper-dev libpoppler-glib-dev libsdl2-dev libtiff5-dev libxrandr-dev
+ git clone https://github.com/openscenegraph/OpenSceneGraph.git --branch OpenSceneGraph-3.4
+ cd OpenSceneGraph
+ mkdir build; cd build
+ cmake .. -DDESIRED_QT_VERSION=4
+ make -j$(nproc)
+ sudo make install
+
+For IkFast to work correctly, you *must* have the correct version of sympy installed: ::
+
+ pip install --upgrade --user sympy==0.7.1
+
+You should *not* have mpmath installed: ::
+
+ sudo apt remove python-mpmath
+
+MoveIt IKFast Installation
+---------------------------
 Install the MoveIt IKFast package either from Debian packages or from source.
 
 **Binary Install**: ::
@@ -61,10 +100,41 @@ Inside your catkin workspace's ``./src`` directory: ::
  rosdep install -y --from-paths . --ignore-src --rosdistro ${ROS_DISTRO}
  catkin build
 
-Creating the IKFast MoveIt plugin
----------------------------------
+OpenRAVE Installation
+----------------------
 
-To facilitate copy-and-paste, we suggest to define the robot name as an environment variable: ::
+**Binary Install (only Indigo / Ubuntu 14.04)**: ::
+
+ sudo apt-get install ros-indigo-openrave
+
+Note: you have to set: ::
+
+ export PYTHONPATH=$PYTHONPATH:`openrave-config --python-dir`
+
+**Source Install**: ::
+
+ git clone --branch latest_stable https://github.com/rdiankov/openrave.git
+ cd openrave && mkdir build && cd build
+ cmake -DODE_USE_MULTITHREAD=ON -DOSG_DIR=/usr/local/lib64/ ..
+ make -j$(nproc)
+ sudo make install
+
+Working commit numbers 5cfc7444... confirmed for Ubuntu 14.04 and 9c79ea26... confirmed for Ubuntu 16.04, according to Stéphane Caron.
+
+**Please report your results with this on** `this GitHub repository. <https://github.com/ros-planning/moveit_tutorials>`_
+
+Create Collada File For Use With OpenRAVE
+-----------------------------------------
+
+Parameters
+^^^^^^^^^^
+
+ * *MYROBOT_NAME* - name of robot as in your URDF
+ * *PLANNING_GROUP* - name of the planning group you would like to use this solver for, as referenced in your SRDF and kinematics.yaml
+ * *MOVEIT_IK_PLUGIN_PKG* - name of the new package you just created
+ * *IKFAST_OUTPUT_PATH* - file path to the location of your generated IKFast output.cpp file
+
+To make using this tutorial copy/paste friendly, set a MYROBOT_NAME environment variable with the name of your robot: ::
 
   export MYROBOT_NAME="ur3e"
   export MYROBOT_CONFIG_OUTPUT_PATH="root/$MYROBOT_NAME_config/"
@@ -90,9 +160,11 @@ In the launch folder of the ``ur_calibration`` package is a helper script: ::
 
 For the parameter ``robot_ip`` insert the IP address on which the ROS pc can reach the robot. As ``target_filename`` provide an absolute path where the result will be saved to.
 
-Generate URDF model from calibrated robot. ::
+First you will need robot description file that is in `Collada or OpenRAVE <http://openrave.org/docs/latest_stable/collada_robot_extensions/>`_ robot format.
 
-   xacro --inorder ~/catkin_ws/src/fmauch_universal_robot/ur_e_description/urdf/$MYROBOT_NAME_robot.urdf.xacro kinematics_config:='$MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME_calibration.yaml' >> $MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME.urdf
+Fist however let's generate URDF model from calibrated robot. ::
+
+   xacro ~/catkin_ws/src/fmauch_universal_robot/ur_e_description/urdf/$MYROBOT_NAME_robot.urdf.xacro kinematics_config:='$MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME_calibration.yaml' >> $MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME.urdf
 
 Note: in case 'ur_e_descirption' catalog was not located in 'fmauch_universal_robot' repository, check it out from here (https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description) to '~/catkin_ws/src/fmauch_universal_robot/.' prior to step above ::
 
@@ -100,10 +172,36 @@ Note: in case 'ur_e_descirption' catalog was not located in 'fmauch_universal_ro
    git clone https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description.git
 
     
-OpenRAVE uses Collada instead of URDF to describe the robot. In order to automatically convert your robot's URDF to Collada, you need to provide the .urdf file.
-If your .urdf file is generated from `xacro <http://wiki.ros.org/xacro/>`_ files, you can generate the URDF using the following command: ::
+Once you have your robot in URDF format, you can convert it to Collada (.dae) file using the following command: ::
 
-  rosrun xacro xacro -o $MYROBOT_NAME.urdf $MYROBOT_NAME.urdf.xacro
+ rosrun collada_urdf urdf_to_collada "$MYROBOT_NAME".urdf "$MYROBOT_NAME".dae
+
+Often floating point issues arise in converting a URDF file to Collada file, so a script has been created to round all the numbers down to x decimal places in your .dae file. Its probably best if you skip this step initially and see if IKFast can generate a solution with your default values, but if the generator takes longer than, say, an hour, try the following: ::
+
+    export IKFAST_PRECISION="5"
+    cp "$MYROBOT_NAME".dae "$MYROBOT_NAME".backup.dae  # create a backup of your full precision dae.
+    rosrun moveit_kinematics round_collada_numbers.py "$MYROBOT_NAME".dae "$MYROBOT_NAME".dae "$IKFAST_PRECISION"
+
+From experience we recommend 5 decimal places, but if the OpenRAVE IKFast generator takes to long to find a solution, lowering the number of decimal places should help.
+
+To see the links in your newly generated Collada file
+
+You may need to install package **libsoqt4-dev** to have the display working: ::
+
+ openrave-robot.py "$MYROBOT_NAME".dae --info links
+
+This is useful if you have a 7-dof arm and you need to fill in a --freeindex parameter, discussed later.
+
+To test your newly generated Collada file in OpenRAVE: ::
+
+ openrave "$MYROBOT_NAME".dae
+
+You should see your robot.
+
+.. image:: openrave-UR3e-urde-preview-docker-TurboVNC.png
+   :width: 500px
+   
+   Note: In order to display that via X11 server aka. VNC install server and client supporting 3D graphics rendering acceleration (How to setup VirtualGL and TurboVNC on Ubuntu < https://github.com/hub-raum/VNC-with-3D-Acceleration/blob/master/How%20to%20setup%20VirtualGL%20and%20TurboVNC%20on%20Ubuntu.md>)
 
 Select IK Type
 ^^^^^^^^^^^^^^
