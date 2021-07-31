@@ -1,7 +1,7 @@
 IKFast Kinematics Solver
 ========================
 
-.. image:: openrave_panda.png
+.. image:: openrave-UR3e-urde-preview-docker-TurboVNC.png
    :width: 700px
 
 In this section, we will walk through configuring an IKFast plugin for MoveIt.
