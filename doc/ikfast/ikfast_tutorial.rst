@@ -4,7 +4,7 @@ IKFast Kinematics Solver
 .. image:: openrave-UR3e-urde-preview-docker-TurboVNC.png
    :width: 700px
 
-In this section, we will walk through configuring an IKFast plugin for MoveIt.
+In this section, we will walk through configuring an IKFast plugin for MoveIt (altered for hubraum purposes).
 
 What is IKFast?
 ---------------
@@ -43,7 +43,9 @@ The following command will ensure that you can run docker with your user account
 You need to log off/log on in order to actually activate this permission change.
 
   Note: To run docker from `WSL2 <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_, you need to install the `Docker Desktop WSL 2 backend <https://docs.docker.com/docker-for-windows/wsl>`_.
-
+  
+  Note: [hubraum note] Be aware, that X11 servers do not allow 3D accelerated graphics forwarding. Thus in later part of this tutorial look for TurboVNC (or VirtualGL) installation tutorial in order to preview openrave generated model of your device. However it is only neccessary if you want to play more with GUI applications assosiated with MoveIT and IKFast environment (like RViz). For sole generation of dedicated kinematics, you might omit this part.
+ 
 Install the MoveIt IKFast package either from Debian packages or from source.
 
 **Binary Install**: ::
