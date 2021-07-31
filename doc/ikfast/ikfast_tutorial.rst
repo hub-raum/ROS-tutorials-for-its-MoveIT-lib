@@ -146,7 +146,7 @@ Package for extracting the factory calibration from a UR robot and changing it t
 
 Each UR robot is calibrated inside the factory giving exact forward and inverse kinematics. To also make use of this in ROS, you first have to extract the calibration information from the robot.
 
-Though this step is not necessary, to control the robot using ``Universal_Robots_ROS_Driver`` (https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) driver, it is highly recommended to do so, as end effector positions might be off in the magnitude of centimeters. Make sure to have the driver installed before your proceed with calibration correction.
+Though this step is not necessary, to control the robot using `Universal_Robots_ROS_Driver <https://github.com/UniversalRobots/Universal_Robots_ROS_Driver>`_ driver, it is highly recommended to do so, as end effector positions might be off in the magnitude of centimeters. Make sure to have the driver installed before your proceed with calibration correction.
 
 ** calibration_correction **
 
@@ -166,7 +166,7 @@ Fist however let's generate URDF model from calibrated robot. ::
 
    xacro ~/catkin_ws/src/fmauch_universal_robot/ur_e_description/urdf/$MYROBOT_NAME_robot.urdf.xacro kinematics_config:='$MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME_calibration.yaml' >> $MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME.urdf
 
-Note: in case 'ur_e_descirption' catalog was not located in 'fmauch_universal_robot' repository, check it out from here (https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description) to '~/catkin_ws/src/fmauch_universal_robot/.' prior to step above ::
+Note: in case ``ur_e_descirption`` catalog was not located in ``fmauch_universal_robot`` repository, check it out from `here <https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description>`_ to ``~/catkin_ws/src/fmauch_universal_robot/.`` prior to step above ::
 
    cd ~/catkin_ws/src/fmauch_universal_robot/
    git clone https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description.git
@@ -201,7 +201,11 @@ You should see your robot.
 .. image:: openrave-UR3e-urde-preview-docker-TurboVNC.png
    :width: 500px
    
-   Note: In order to display that via X11 server aka. VNC install server and client supporting 3D graphics rendering acceleration (How to setup VirtualGL and TurboVNC on Ubuntu < https://github.com/hub-raum/VNC-with-3D-Acceleration/blob/master/How%20to%20setup%20VirtualGL%20and%20TurboVNC%20on%20Ubuntu.md>)
+   Note: In order to display that via X11 server aka. VNC install server and client supporting 3D graphics rendering acceleration `How to setup VirtualGL and TurboVNC on Ubuntu <https://github.com/hub-raum/VNC-with-3D-Acceleration/blob/master/How%20to%20setup%20VirtualGL%20and%20TurboVNC%20on%20Ubuntu.md>`_
+
+Create IKFast Solution CPP File
+-------------------------------
+Once you have a numerically rounded Collada file its time to generate the C++ .h header file that contains the analytical IK solution for your robot.
 
 Select IK Type
 ^^^^^^^^^^^^^^
@@ -210,8 +214,97 @@ The most common IK type is *transform6d*.
 
 Choose Planning Group
 ^^^^^^^^^^^^^^^^^^^^^
-If your robot has more than one arm or "planning group" that you want to generate an IKFast solver for, you need to repeat the following process for each group.
-The following instructions will assume you have chosen one ``<planning_group_name>``. Furthermore, you need to know the names of the base link and the endeffector link of the chain to solve for.
+If your robot has more than one arm or "planning group" that you want to generate an IKFast solution for, choose one to generate first. The following instructions will assume you have chosen one <planning_group_name> that you will create a plugin for. Once you have verified that the plugin works, repeat the following instructions for any other planning groups you have. For example, you might have 2 planning groups: ::
+
+ <planning_group_name> = "left_arm"
+ <planning_group_name> = "right_arm"
+
+To make it easy to use copy/paste for the rest of this tutorial. Set a PLANNING_GROUP environment variable. eg: ::
+
+ export PLANNING_GROUP="ur3e"
+
+Identify Link Numbers
+^^^^^^^^^^^^^^^^^^^^^
+You also need the link index numbers for the *base_link* and *end_link* between which the IK will be calculated. You can count the number of links by viewing a list of links in your model: ::
+
+ openrave-robot.py "$MYROBOT_NAME".dae --info links
+
+A typical 6-DOF manipulator should have 6 arm links + a dummy base_link as required by ROS specifications.  If no extra links are present in the model, this gives: *baselink=0* and *eelink=6*.  Often, an additional tool_link will be provided to position the grasp/tool frame, giving *eelink=7*.
+
+The manipulator below also has another dummy mounting_link, giving *baselink=1* and *eelink=8*.
+
+==========  ======  ===========
+name        index   parents
+==========  ======  ===========
+link0       0
+link1       1       link0
+link2       2       link1
+link3       3       link2
+link4       4       link3
+link5       5       link4
+link6       6       link5
+link7       7       link6
+link8       8       link7
+==========  ======  ===========
+
+Generate IK Solver (using ikfast’s inversekinematics database)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Many thanks to @`gvdhoorn <https://answers.ros.org/users/5184/gvdhoorn/>`_ for pointing out this method in his posts on ROS answer [1, 2, 3]. His post in [3] gives most of the details to generate the ik solver. The greatest thing for using this method is that it will let ikfast to decide which joint to be set as free joint and experiments has proved that it worked for the 6+1 dof case.
+
+I’ve tested using the inversekinematics database without using the ``personalrobotics/ros-openrave`` Docker image. `OpenRave Installation <http://docs.ros.org/en/kinetic/api/framefab_irb6600_support/html/doc/ikfast_tutorial.html#openraveinstallation>`_ in this tutorial works too.
+
+First, create a xml wrapper for the collada file (``"$MYROBOT_NAME".dae``): ::
+
+   <robot file="$NAME_OF_YOUR_COLLADA_FILE">
+        <Manipulator name="NAME_OF_THE_ROBOT_IN_URDF">
+          <base>base_link</base>
+          <effector>tool0</effector>
+        </Manipulator>
+   </robot>
+
+And save it as ``"$MYROBOT_NAME"_collada.xml`` in the folder where you saved your collada file. Quote from gvdhoorn in `his post <https://answers.ros.org/question/263925/generating-an-ikfast-solution-for-4-dof-arm/?answer=265625#post-id-265625>`_: ::
+   OpenRAVE supports relative filenames for the file attribute of the robot element in our wrapper.xml, so it's easiest if you place wrapper.xml in the same directory that contains the .dae of your robot model.
+
+Then run: ::
+   cd /path/to/your/xml_and_collada/file # in your case ``cd "$MYROBOT_CONFIG_OUTPUT_PATH"``
+   openrave.py --database inversekinematics --robot=<NAME_OF_YOUR_COLLADA_FILE>.xml --iktype=transform6d --iktests=1000
+
+The iktests parameter value was just a default, you can make it larger or smaller.
+
+Then you can harvest your ikfast.h and ikfast.<random_ikfast_id>.cpp
+
+**Example**
+
+First create a xml wrapper: ::
+
+   <robot file="irb6600_with_linear_track_workspace.dae">
+        <Manipulator name="framefab_irb6600_workspace">
+          <base>linear_axis_base_link</base>
+          <effector>robot_tool0</effector>
+        </Manipulator>
+   </robot>
+Save it as ``irb6600_with_linear_track_workspace.xml``.
+
+Then run: ::
+
+   cd /path/to/your/xml_and_collada/file
+   openrave.py --database inversekinematics --robot=irb6600_with_linear_track_workspace.xml --iktype=transform6d --iktests=1000
+   % it will run ik test 1000 times, you can change it to whatever number you want
+
+After about 2 minutes (bullshit - it took me approx. an hour), you will see the following in your terminal:
+
+   openravepy.databases.inversekinematics: generate, successfully generated c++ ik in 120.398534s, file=/home/yijiangh/.openrave/kinematics.6749b3e95c92afb4a30628f16aa823de/ikfast0x1000004a.Transform6D.0_1_3_4_5_6_f2.cpp
+   openravepy.databases.inversekinematics: generate, compiling ik file to /home/yijiangh/.openrave/kinematics.6749b3e95c92afb4a30628f16aa823de/ikfast0x1000004a.Transform6D.x86_64.0_1_3_4_5_6_f2.so
+   openravepy.databases.inversekinematics: save, inversekinematics generation is done, compiled shared object: /home/yijiangh/.openrave/kinematics.6749b3e95c92afb4a30628f16aa823de/ikfast0x1000004a.Transform6D.x86_64.0_1_3_4_5_6_f2.so
+   openravepy.databases.inversekinematics: RunFromParser, testing the success rate of robot irb6600_with_linear_track_workspace.xml
+   % ....... ikfast test failure warning at some test case No. i
+   openravepy.databases.inversekinematics: testik, success rate: 0.986000, wrong solutions: 0.000000, no solutions: 0.014000, missing solution: 0.608000
+
+Yaah! you got your ikfast.h and ikfast<id>.Transform6D.<...>.cpp saved in your $home/<username>/.openrave/<id>/ folder.
+
+[1] https://answers.ros.org/question/285611/set-free_index-for-7-dof-robots-ikfast-moveit-plugin-generation/ [2] https://answers.ros.org/question/263925/generating-an-ikfast-solution-for-4-dof-arm/ [3] https://answers.ros.org/question/196753/generating-ikfast-plugin-for-5-dof-robot/
+
+[below part needst to be checked]
 
 Generate IKFast MoveIt plugin
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
