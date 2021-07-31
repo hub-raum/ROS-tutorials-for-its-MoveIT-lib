@@ -65,8 +65,20 @@ Creating the IKFast MoveIt plugin
 
 To facilitate copy-and-paste, we suggest to define the robot name as an environment variable: ::
 
-  export MYROBOT_NAME="panda"
+  export MYROBOT_NAME="ur3e"
+  export MYROBOT_CONFIG_OUTPUT_PATH="root/$MYROBOT_NAME_config/"
 
+Generate URDF model from calibrated robot. You need to have the calibration file of your robot ready. See [here](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/tree/master/ur_calibration) for instructions to get the calibration file of your robot.
+    ```shell
+    xacro --inorder ~/catkin_ws/src/fmauch_universal_robot/ur_e_description/urdf/$MYROBOT_NAME_robot.urdf.xacro kinematics_config:='$MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME_calibration.yaml' >> $MYROBOT_CONFIG_OUTPUT_PATH/$MYROBOT_NAME.urdf
+    ```
+    
+    Note: in case 'ur_e_descirption' catalog was not located in 'fmauch_universal_robot' repository, check it out from here (https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description) to '~/catkin_ws/src/fmauch_universal_robot/.' prior to step above
+    ```shell
+    cd ~/catkin_ws/src/fmauch_universal_robot/
+    git clone https://github.com/ros-industrial/universal_robot/tree/melodic-devel/ur_e_description.git
+    ```
+    
 OpenRAVE uses Collada instead of URDF to describe the robot. In order to automatically convert your robot's URDF to Collada, you need to provide the .urdf file.
 If your .urdf file is generated from `xacro <http://wiki.ros.org/xacro/>`_ files, you can generate the URDF using the following command: ::
 
